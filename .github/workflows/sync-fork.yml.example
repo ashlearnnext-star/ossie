@@ -1,0 +1,42 @@
+# Example workflow: keep your fork's `main` in sync with apache/ossie's `main`,
+# every day. This is a plain git/gh operation — no AI, no Devin CLI needed, so
+# it doesn't depend on the unresolved CI-auth question in the other two
+# workflow examples. It's also the one piece here safe to actually turn on
+# today, since `gh repo sync` is a standard, well-documented GitHub CLI command.
+#
+# IMPORTANT: this syncs your fork's `main` branch only. Your friends should do
+# their feature work on a separate branch (e.g. `feature/x`), not on `main` —
+# syncing `main` fast-forwards it to match upstream, which would discard any
+# commits made directly on your fork's `main` that upstream doesn't have.
+#
+# Set up once: Settings > Actions > General > Workflow permissions on your
+# fork must allow "Read and write permissions" for GITHUB_TOKEN to push the
+# synced `main` back (or use a PAT with repo scope instead, if you prefer not
+# to change that default).
+
+name: Sync fork main with upstream
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # once a day; runs before fork-triage.yml.example's daily sweep
+  workflow_dispatch: {}
+
+permissions:
+  contents: write   # to update this fork's `main`; nothing else
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync main with apache/ossie
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Fast-forward only: if your fork's main has diverged (e.g. someone
+          # committed to it directly), this fails loudly instead of rewriting
+          # history or silently dropping commits.
+          gh repo sync "${{ github.repository }}" --source apache/ossie --branch main

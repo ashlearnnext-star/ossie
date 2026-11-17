@@ -1,0 +1,73 @@
+# Example workflow: scheduled PR & issue review of a TARGET repo, draft-only.
+#
+# Host this in YOUR OWN fork (or any repo you control) — not in the upstream
+# project (e.g. apache/ossie). You don't have merge rights there, and adding
+# an automated/bot workflow to an Apache project's own CI needs PMC review.
+#
+# IMPORTANT: `pull_request:` / `issues:` triggers fire only for events on the
+# repo that HOSTS this workflow (your fork), not on TARGET_REPO below. That's
+# why this uses `schedule` / `workflow_dispatch` plus an explicit TARGET_REPO
+# value, and has the job query that repo's API directly — the API calls work
+# the same regardless of which repo the runner lives in.
+#
+# This is NOT wired up to run — it's a reference. Before using it:
+#   1. Install Devin CLI in the runner (see devin.ai docs for the install step;
+#      I have not confirmed an officially supported non-interactive/CI auth
+#      flow exists today — check with Devin support before relying on this).
+#   2. Set TARGET_REPO below to the project you want reviewed (e.g. apache/ossie).
+#   3. Decide what "new" means for your sweep (e.g. PRs/issues updated since the
+#      last run) — the placeholder command below reviews one fixed URL; a real
+#      version would list recent items via the GitHub search API first.
+#
+# Key safety property: `permissions` below grants read-only access to THIS repo
+# only. The job never authenticates as a user with write access to TARGET_REPO,
+# so it cannot post there even if asked to — draft-only is enforced by the
+# environment, not just by the prompt.
+
+name: Apache review (draft only)
+
+env:
+  TARGET_REPO: apache/ossie   # the project being reviewed, not the repo hosting this workflow
+
+on:
+  schedule:
+    - cron: "0 13 * * *"   # once a day; adjust as needed
+  workflow_dispatch: {}     # lets you trigger it manually from the Actions tab
+
+permissions:
+  contents: read
+  # No "write" scopes, and no token for TARGET_REPO: this job can only read
+  # TARGET_REPO's public API, it cannot post comments or create issues there.
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Devin CLI
+        run: |
+          # Replace with the actual install command for your Devin CLI distribution.
+          echo "install devin-cli here"
+
+      - name: Run apache-review skill (draft only)
+        id: review
+        run: |
+          devin -p --respect-workspace-trust false \
+            "Use the apache-review skill, unattended/draft-only mode, on repo: $TARGET_REPO. \
+             List open PRs/issues updated in the last day via the public GitHub API and review \
+             each. Write the draft to review-draft.md." \
+            | tee review-output.txt
+
+      - name: Upload draft as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apache-review-draft
+          path: |
+            review-draft.md
+            review-output.txt
+
+      - name: Add to job summary
+        run: |
+          echo "## Apache review draft (not posted)" >> "$GITHUB_STEP_SUMMARY"
+          cat review-output.txt >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,113 @@
+# Example workflow: triage issues/PRs/comments/discussions on YOUR OWN repo
+# (e.g. your fork, once you treat it as its own project with real
+# collaborators). This is "owner mode": the repo being watched is the same
+# repo that owns the credentials running this job, so auto-posting triage
+# comments and PR reviews is reasonable — see SKILL.md section 6a.
+#
+# What this still does NOT do automatically: merge PRs, close issues/PRs, or
+# change repo settings. Those stay manual, on purpose — bot-assisted triage is
+# normal; bot-assisted merging is how you end up shipping something nobody
+# reviewed.
+#
+# One-time setup before this does anything useful:
+#   1. In your fork's Settings, enable "Issues" and "Discussions" (forks have
+#      both disabled by default), so your friends have somewhere to post.
+#   2. Add your friends as the repo's audience: either leave the repo public
+#      (anyone can open issues/PRs/discussions on a public repo) or add them
+#      as collaborators if you want write access for them too.
+#   3. Add an `ANTHROPIC_API_KEY` repository secret (Settings > Secrets and
+#      variables > Actions). This uses Anthropic's official, documented
+#      `claude-code-action`, so unlike the Devin CLI version, CI auth here is
+#      confirmed and supported, not a guess.
+#   4. Commit `.claude/skills/apache-review/SKILL.md` into this repo (same
+#      content as the global one) so the action can find and use it.
+# No environment-approval gate: comments post immediately when this runs,
+# by design (see "Keep auto-posting comments" decision). An environment
+# protection rule was considered, but it would only let you approve/reject a
+# whole BLIND run before it executes — it can't show you draft comment text
+# first, since that text doesn't exist until the job runs. Given comments are
+# meant to auto-post, that gate would only add delay, not real review.
+#
+# The actual daily review loop is: PRs this opens sit open, with their diff
+# visible, until you merge them — that review step already exists natively
+# and needs nothing extra. Check your fork's Issues/PRs/Discussions tabs (and
+# the Actions tab, to see what ran) whenever you log in; there's no separate
+# dashboard beyond GitHub's own.
+#
+# Safety property: `permissions` below is scoped to THIS repo only, and never
+# includes repo administration or merge-bypass scopes. The job can comment,
+# label, and open PRs/branches here — it cannot change who owns or administers
+# the repo, and nothing here merges anything.
+#
+# SECURITY NOTE on `pull_request_target`: this trigger runs with write-scoped
+# credentials even for PRs from a friend's own fork, which is why it's used
+# here instead of `pull_request`. That combination is only safe because the
+# checkout step below never checks out or executes the PR's own head commit —
+# it only reads metadata via the API/`gh`. If this workflow is ever changed to
+# build or run the PR's code (e.g. to run tests), that step must use a
+# separate job with the `pull_request` trigger and no write token, not this
+# one — otherwise a malicious PR could steal this job's credentials.
+
+name: Fork triage
+
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [opened, synchronize]
+  pull_request_review_comment:
+    types: [created]
+  discussion:
+    types: [created]
+  discussion_comment:
+    types: [created]
+  schedule:
+    - cron: "0 13 * * *"   # daily digest/catch-all, in case an event was missed
+  workflow_dispatch: {}
+
+permissions:
+  contents: write          # to create branches/commits for a proposed fix
+  issues: write            # to comment/label on issues
+  pull-requests: write     # to comment/review/open PRs
+  discussions: write       # to reply in discussions
+  id-token: write          # required by claude-code-action
+  actions: read            # lets Claude read CI results on PRs
+  # No admin/merge-bypass permissions, and nothing here ever calls the merge
+  # or branch-protection APIs.
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Figure out what triggered this run
+        id: target
+        run: |
+          case "${{ github.event_name }}" in
+            issues) echo "url=${{ github.event.issue.html_url }}" >> "$GITHUB_OUTPUT" ;;
+            issue_comment) echo "url=${{ github.event.comment.html_url }}" >> "$GITHUB_OUTPUT" ;;
+            pull_request_target) echo "url=${{ github.event.pull_request.html_url }}" >> "$GITHUB_OUTPUT" ;;
+            pull_request_review_comment) echo "url=${{ github.event.comment.html_url }}" >> "$GITHUB_OUTPUT" ;;
+            discussion) echo "url=${{ github.event.discussion.html_url }}" >> "$GITHUB_OUTPUT" ;;
+            discussion_comment) echo "url=${{ github.event.comment.html_url }}" >> "$GITHUB_OUTPUT" ;;
+            *) echo "url=" >> "$GITHUB_OUTPUT" ;;  # schedule / workflow_dispatch: do a full sweep instead
+          esac
+
+      - name: Run apache-review skill (owner/triage mode)
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # `prompt` makes this run automatically on the event, with no "@claude"
+          # mention required — needed since friends won't know to ask for it.
+          prompt: |
+            Use the apache-review skill, owner/triage mode (this repo is mine).
+            ${{ steps.target.outputs.url != '' &&
+                format('Target: {0}. Verify it, then post a triage comment or PR review directly.', steps.target.outputs.url) ||
+                format('No single target (scheduled sweep): check open issues/PRs/discussions in {0} updated since the last run, post triage comments/reviews on anything not already handled.', github.repository) }}
+            Do not merge, close, or force-push anything.
