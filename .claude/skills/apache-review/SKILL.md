@@ -19,7 +19,7 @@ triggers:
 
 You are helping with open-source contribution work on an Apache (or similar) project: reviewing a
 PR, filing an issue, finding a small fix, reviewing a spec or doc for gaps, or commenting on an open
-issue/discussion. Follow this process. Do not skip the verification steps â€” they are the point of
+issue/discussion. Follow this process. Do not skip the verification steps — they are the point of
 this skill.
 
 ## 0. Identify the task and the project
@@ -173,9 +173,9 @@ describes.
   example before fixing/implementing it.
 - Write a failing test first, then the fix/implementation, then confirm the test passes.
 - Before claiming "no regressions," actually run the existing test suite, and compare against a
-  clean checkout (e.g. `git stash`) if there are pre-existing failures unrelated to your change â€”
+  clean checkout (e.g. `git stash`) if there are pre-existing failures unrelated to your change —
   don't assume a failure is pre-existing without checking.
-- Check open PRs for the same fix/feature before writing one yourself â€” someone may already be
+- Check open PRs for the same fix/feature before writing one yourself — someone may already be
   working on it. If so, don't open a competing PR; consider reviewing theirs instead.
 - Work in a separate `git worktree` created from the upstream's `main`, on a new branch, so the
   user's current branch and uncommitted changes stay untouched.
@@ -192,7 +192,7 @@ describes.
 - State severity honestly: say plainly if something is a nitpick/non-blocking versus a real
   defect, and don't inflate either direction.
 - Keep sentences short, one claim per sentence, consistent terminology for the same concept
-  throughout (controlled, plain language â€” avoid hedging words like "I think," "probably," "maybe"
+  throughout (controlled, plain language — avoid hedging words like "I think," "probably," "maybe"
   unless genuine uncertainty remains after you've checked).
 - When proposing a fix, show the minimal diff, not a rewrite.
 - When a design question has more than one defensible answer, present the options neutrally
@@ -282,17 +282,17 @@ Then give the suggested comment or next steps.
 
 The approval rule in step 6 is there because posting to someone else's project carries real
 social/reputational cost if wrong. That cost doesn't apply the same way when the target repo
-belongs to the person running this skill â€” e.g., your own fork where real people (collaborators,
+belongs to the person running this skill — e.g., your own fork where real people (collaborators,
 friends) open issues, PRs, and discussions, and you are the maintainer.
 
-In that specific case â€” the repo's owner is the same person configuring/running this automation â€”
+In that specific case — the repo's owner is the same person configuring/running this automation —
 it's reasonable to act and post without per-item human approval:
 - A triage comment on a new issue: acknowledging it, asking clarifying questions, checking for
   duplicates within the same repo, applying labels.
 - A review comment on a new PR: the same verification process as step 2, posted directly.
 - A reply in a discussion thread.
 - Opening a PR with a proposed fix or implementation (branch, commits, description), built the way
-  step 4 describes â€” including real code, not just a comment suggesting one. This overrides step
+  step 4 describes — including real code, not just a comment suggesting one. This overrides step
   6's "let the user open the PR" default specifically for repos covered by this exception.
 
 Still require the owner's explicit action (never automate) for:
@@ -305,10 +305,10 @@ run, default to step 6's full approval flow rather than assuming owner mode appl
 
 ## 7. Unattended / scheduled runs
 
-If invoked non-interactively (no human present to answer a prompt â€” for example via a CI workflow)
+If invoked non-interactively (no human present to answer a prompt — for example via a CI workflow)
 **and the owner-mode exception in 6a applies** (the target repo belongs to the person who
 configured this run), posting triage comments, PR reviews, and discussion replies automatically is
-expected â€” that's the point of running it unattended on your own repo. Still never merge, close, or
+expected — that's the point of running it unattended on your own repo. Still never merge, close, or
 force-push unattended; leave those for the owner.
 
 If invoked non-interactively and 6a does **not** apply (the target is someone else's project), do
