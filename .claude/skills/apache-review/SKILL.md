@@ -36,6 +36,27 @@ From the user's input, determine:
   `gh repo view <owner>/<repo> --json parent`. Read from and compare against the upstream's
   `main`, not the fork's branch.
 
+### Know the user's own involvement first
+
+Before picking or analysing anything, look up what the user has already done in this repo. GitHub
+records it, so query it every time; don't rely on memory of earlier sessions:
+
+```bash
+ME=$(gh api user --jq .login)
+gh search issues --repo <owner>/<repo> --commenter "$ME" --include-prs --limit 50 \
+  --json number,title,state,isPullRequest
+gh search issues --repo <owner>/<repo> --author "$ME" --include-prs --limit 50 \
+  --json number,title,state,isPullRequest
+```
+
+Use the result throughout:
+- For each issue or PR you consider, say up front if the user already commented on it, opened it,
+  or has an open PR that touches it, and what their last comment said. Read it before drafting.
+- Don't draft a comment that repeats what the user already posted. If their earlier comment
+  already covers the finding, say so and suggest only what's new (for example a short nudge for
+  a maintainer to close the issue), or nothing.
+- Treat the user's own open PRs as overlapping work in step 3, the same as anyone else's.
+
 If the user says "any PR", pick one that is worth a review: small enough to verify fully, no
 reviews yet, and making a claim you can actually check (a behavior, a performance claim, a
 reference to another system or a standard). Say which one you picked and why in one line.
@@ -142,6 +163,11 @@ any implementation work on an existing issue**:
   (`https://api.github.com/repos/<owner>/<repo>/issues/<number>/timeline`, or just read the issue
   page) for PRs that reference it, open or merged -- not just a keyword search. A PR can close or
   partially address an issue without the issue itself being closed yet.
+  - When surveying a repo for something to pick up, run this check on **every** candidate issue
+    before recommending it, not only on the one you end up choosing. Checking candidates against
+    open PRs alone misses merged ones.
+  - Read what each linked merged PR actually says about the issue. A PR may only mention it, or
+    explicitly leave it out of scope ("tracked in #N"), in which case the issue is still open work.
 - Separately, keyword-search issues, PRs (open and closed/merged), and discussions for the same
   topic (`gh search issues --repo <owner>/<repo> "<keywords>" --include-prs`, or
   `https://api.github.com/search/issues?q=repo:<owner>/<repo>+<keywords>`), since related work
@@ -327,6 +353,8 @@ draft-only:
 
 End with:
 1. A one-line summary of what you found (bug / duplicate / non-issue / design question).
+   When you cover several issues or PRs, include a "your involvement" column (commented / authored
+   / your open PR / none) so the user sees at a glance where they have already acted.
 2. When there are several findings, group them: **already covered** (with the issue/PR that covers
    each), **new bugs**, **spec gaps**, and **editorial**. For each new one, say where it should
    go: a comment on an existing PR, a new issue, or a small PR.
